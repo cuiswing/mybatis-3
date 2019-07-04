@@ -39,11 +39,17 @@ public class JdbcTransaction implements Transaction {
 
   private static final Log log = LogFactory.getLog(JdbcTransaction.class);
 
+  // 事务对应的数据库连接
   protected Connection connection;
+  // 数据库连接所属的 DataSource
   protected DataSource dataSource;
+  // 事务隔离级别
   protected TransactionIsolationLevel level;
+  // 是否自动提交
   protected boolean autoCommit;
 
+  // 在 JdbcTransaction 的构造函数中会初始化除 connection 字段之外的其他三个字段 ，
+  // 而 connection宇段会延迟初始化，它会在调用 getConnection()方法时通过dataSource.getConnection() 方法初始化，并且同时设置 autoCommit 和事务隔离级别
   public JdbcTransaction(DataSource ds, TransactionIsolationLevel desiredLevel, boolean desiredAutoCommit) {
     dataSource = ds;
     level = desiredLevel;
@@ -62,6 +68,7 @@ public class JdbcTransaction implements Transaction {
     return connection;
   }
 
+  // JdbcTransaction 的 commit()方法和 rollback()方法都会调用 Connection对应方法实现的。
   @Override
   public void commit() throws SQLException {
     if (connection != null && !connection.getAutoCommit()) {

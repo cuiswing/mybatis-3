@@ -19,6 +19,8 @@ import java.io.InputStream;
 import java.net.URL;
 
 /**
+ * ClassLoaderWrapper会按照指定的顺序依次检测其中封装的 ClassLoader对象，并从中选取第一 个可用的 ClassLoader完成相关功能。
+ * <p>
  * A class to wrap access to multiple class loaders making them work as one
  *
  * @author Clinton Begin
@@ -136,35 +138,31 @@ public class ClassLoaderWrapper {
    * @return the resource or null
    */
   URL getResourceAsURL(String resource, ClassLoader[] classLoader) {
-
     URL url;
-
+    // 遍历 ClassLoader 数组，调用 ClassLoader.getResource ()方法查找指定的资源，
     for (ClassLoader cl : classLoader) {
-
       if (null != cl) {
-
         // look for the resource as passed in...
         url = cl.getResource(resource);
 
         // ...but some class loaders want this leading "/", so we'll add it
         // and try again if we didn't find the resource
         if (null == url) {
+          // 尝试以 ”/”开头，再次查找
           url = cl.getResource("/" + resource);
         }
 
         // "It's always in the last place I look for it!"
         // ... because only an idiot would keep looking for it after finding it, so stop looking already.
+        // 😂 这是谁写的注释啊，也不用说人傻瓜吧 ^_^
         if (null != url) {
           return url;
         }
-
       }
-
     }
 
     // didn't find it anywhere.
     return null;
-
   }
 
   /**
@@ -201,13 +199,14 @@ public class ClassLoaderWrapper {
 
   }
 
+  // 返回 ClassLoader[] 数量，该数组指明了类加载器的使用顺序
   ClassLoader[] getClassLoaders(ClassLoader classLoader) {
     return new ClassLoader[]{
-        classLoader,
-        defaultClassLoader,
-        Thread.currentThread().getContextClassLoader(),
-        getClass().getClassLoader(),
-        systemClassLoader};
+        classLoader,  // 参数指定的类加载器
+        defaultClassLoader, // 系统指定的默认类加载器
+        Thread.currentThread().getContextClassLoader(),   // 当前线程绑定的类加载器
+        getClass().getClassLoader(),  // 加载当前类所使用的类加载器
+        systemClassLoader}; // System ClassLoader
   }
 
 }

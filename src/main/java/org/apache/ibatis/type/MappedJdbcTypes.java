@@ -22,6 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * \\@MappedJdbcTypes 注解用于指明该 TypeHandler实现类能够处理的 JDBC 类型集合。
  * @author Eduardo Macarron
  */
 @Documented

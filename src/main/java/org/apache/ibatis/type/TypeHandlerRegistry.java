@@ -48,16 +48,25 @@ import org.apache.ibatis.io.ResolverUtil;
 import org.apache.ibatis.io.Resources;
 
 /**
+ * 在 MyBatis 初始化过程中，会为所有己知的 TypeHandler 创建对象，并实现注册到
+ * TypeHandlerRegistry 中，由 TypeHandlerRegistry 负责管理这些 TypeHandler 对象。
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
 public final class TypeHandlerRegistry {
 
+  // 记录 JdbcType 与 TypeHandler 之间的对应关系，其中 JdbcType 是一个枚举类型，它定义对应的 JDBC 类型
+  // 该集合主要用于从结果集读取数据时，将数据从 Jdbc 类型转换成 Java 类型
   private final Map<JdbcType, TypeHandler<?>>  jdbcTypeHandlerMap = new EnumMap<>(JdbcType.class);
-  private final Map<Type, Map<JdbcType, TypeHandler<?>>> typeHandlerMap = new ConcurrentHashMap<>();
-  private final TypeHandler<Object> unknownTypeHandler = new UnknownTypeHandler(this);
-  private final Map<Class<?>, TypeHandler<?>> allTypeHandlersMap = new HashMap<>();
 
+  // 记录了 Java 类型向指定 JdbcType 转换时，需要使用的 TypeHandler 对象。 例如: Java 类型中的 String 可能
+  // 转换成数据库 的 char、 varchar 等多种类型，所以存在一对多关系
+  private final Map<Type, Map<JdbcType, TypeHandler<?>>> typeHandlerMap = new ConcurrentHashMap<>();
+
+  private final TypeHandler<Object> unknownTypeHandler = new UnknownTypeHandler(this);
+  // 记录了全部 TypeHandler 的类型以及该类型相应的 TypeHandler 对象
+  private final Map<Class<?>, TypeHandler<?>> allTypeHandlersMap = new HashMap<>();
+  // 空 TypeHandler 集合的标识
   private static final Map<JdbcType, TypeHandler<?>> NULL_TYPE_HANDLER_MAP = Collections.emptyMap();
 
   private Class<? extends TypeHandler> defaultEnumTypeHandler = EnumTypeHandler.class;
@@ -93,6 +102,7 @@ public final class TypeHandlerRegistry {
 
     register(Reader.class, new ClobReaderTypeHandler());
     register(String.class, new StringTypeHandler());
+    // StringTypeHandler 能够将数据从 String 类型转换成 CHAR，所以向 typeHandlerMap集合注册该对象，并向 allTypeHandlersMap 集合注册 StringTypeHandler
     register(String.class, JdbcType.CHAR, new StringTypeHandler());
     register(String.class, JdbcType.CLOB, new ClobTypeHandler());
     register(String.class, JdbcType.VARCHAR, new StringTypeHandler());
@@ -100,6 +110,7 @@ public final class TypeHandlerRegistry {
     register(String.class, JdbcType.NVARCHAR, new NStringTypeHandler());
     register(String.class, JdbcType.NCHAR, new NStringTypeHandler());
     register(String.class, JdbcType.NCLOB, new NClobTypeHandler());
+    // 向 jdbcTypeHandlerMap 集合注册 CHAR 对应的 StringTypeHandler
     register(JdbcType.CHAR, new StringTypeHandler());
     register(JdbcType.VARCHAR, new StringTypeHandler());
     register(JdbcType.CLOB, new ClobTypeHandler());
@@ -218,15 +229,18 @@ public final class TypeHandlerRegistry {
     if (ParamMap.class.equals(type)) {
       return null;
     }
+    // 查找(或初始化) Java 类型对应的 TypeHandler 集合
     Map<JdbcType, TypeHandler<?>> jdbcHandlerMap = getJdbcHandlerMap(type);
     TypeHandler<?> handler = null;
     if (jdbcHandlerMap != null) {
+      // 根据 JdbcType 类型查找 TypeHandler 对象
       handler = jdbcHandlerMap.get(jdbcType);
       if (handler == null) {
         handler = jdbcHandlerMap.get(null);
       }
       if (handler == null) {
         // #591
+        // 如果 jdbcHandlerMap 只注册了一个 TypeHandler，则使用此 TypeHandler 对象
         handler = pickSoleHandler(jdbcHandlerMap);
       }
     }
@@ -318,6 +332,7 @@ public final class TypeHandlerRegistry {
   @SuppressWarnings("unchecked")
   public <T> void register(TypeHandler<T> typeHandler) {
     boolean mappedTypeFound = false;
+    // 获取@MappedTypes 注解，并根据 @MappedTypes 注解指定的 Java 类型进行注册
     MappedTypes mappedTypes = typeHandler.getClass().getAnnotation(MappedTypes.class);
     if (mappedTypes != null) {
       for (Class<?> handledType : mappedTypes.value()) {
@@ -326,6 +341,7 @@ public final class TypeHandlerRegistry {
       }
     }
     // @since 3.1.0 - try to auto-discover the mapped type
+    // 从 3.1.0 版本开始，可以根据 TypeHandler 类型自动查找对应的 Java 类型，这需要TypeHandler 实现类同时继承 TypeReference 这个抽象类
     if (!mappedTypeFound && typeHandler instanceof TypeReference) {
       try {
         TypeReference<T> typeReference = (TypeReference<T>) typeHandler;
@@ -346,7 +362,12 @@ public final class TypeHandlerRegistry {
     register((Type) javaType, typeHandler);
   }
 
+  // 尝试读取 TypeHandler类中定义的@MappedTypes 注解和@MappedJdbcTypes 注解，
+  // @MappedTypes 注解用于指明该 TypeHandler实现类能够处理的 Java类型的集合，
+  // @MappedJdbcTypes注解用于指明该 TypeHandler实现类能够处理的 JDBC 类型集合。
+
   private <T> void register(Type javaType, TypeHandler<? extends T> typeHandler) {
+    // 获取@MappedJdbcTypes 注解，根据@ MappedJdbcTypes 注解指定的 JDBC 类型进行注册
     MappedJdbcTypes mappedJdbcTypes = typeHandler.getClass().getAnnotation(MappedJdbcTypes.class);
     if (mappedJdbcTypes != null) {
       for (JdbcType handledJdbcType : mappedJdbcTypes.value()) {
@@ -370,13 +391,16 @@ public final class TypeHandlerRegistry {
     register((Type) type, jdbcType, handler);
   }
 
+  // 最终都是调用这个方法来完成注册工作
   private void register(Type javaType, JdbcType jdbcType, TypeHandler<?> handler) {
+    // 检测是否明确指定了 TypeHandler 能够处理的 Java 类型
     if (javaType != null) {
       Map<JdbcType, TypeHandler<?>> map = typeHandlerMap.get(javaType);
       if (map == null || map == NULL_TYPE_HANDLER_MAP) {
         map = new HashMap<>();
         typeHandlerMap.put(javaType, map);
       }
+      // 将 TypeHandler 对象注册到 typeHandlerMap 集合
       map.put(jdbcType, handler);
     }
     allTypeHandlersMap.put(handler.getClass(), handler);
@@ -390,6 +414,7 @@ public final class TypeHandlerRegistry {
 
   public void register(Class<?> typeHandlerClass) {
     boolean mappedTypeFound = false;
+    // 获取@MappedTypes 注解，根据@MappedTypes 注解解中指定的 Java 类型进行注册
     MappedTypes mappedTypes = typeHandlerClass.getAnnotation(MappedTypes.class);
     if (mappedTypes != null) {
       for (Class<?> javaTypeClass : mappedTypes.value()) {
@@ -441,13 +466,14 @@ public final class TypeHandlerRegistry {
   }
 
   // scan
-
+  // 查找指定包下的 TypeHandler接口实现类 并注册
   public void register(String packageName) {
     ResolverUtil<Class<?>> resolverUtil = new ResolverUtil<>();
     resolverUtil.find(new ResolverUtil.IsA(TypeHandler.class), packageName);
     Set<Class<? extends Class<?>>> handlerSet = resolverUtil.getClasses();
     for (Class<?> type : handlerSet) {
       //Ignore inner classes and interfaces (including package-info.java) and abstract classes
+      // 过滤掉内部类 、接口以及抽象类
       if (!type.isAnonymousClass() && !type.isInterface() && !Modifier.isAbstract(type.getModifiers())) {
         register(type);
       }

@@ -25,6 +25,8 @@ import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 
 /**
+ * 根据指定的条件查找指定包 下的 类，其 中使用的条件由 Test 接口表示。
+ *
  * <p>ResolverUtil is used to locate classes that are available in the/a class path and meet
  * arbitrary conditions. The two most common conditions are that a class implements/extends
  * another class, or that is it annotated with a specific annotation. However, through the use
@@ -68,6 +70,8 @@ public class ResolverUtil<T> {
    */
   public interface Test {
     /**
+     * 参数 type 是待检测的类 ，如果该类符合检测的条件，则 matches ()方法返回 true，否则返回 false
+     *
      * Will be called repeatedly with candidate classes. Must return True if a class
      * is to be included in the results, false otherwise.
      */
@@ -75,13 +79,18 @@ public class ResolverUtil<T> {
   }
 
   /**
+   * 用于检测指定类是否继承了 parent 指定的类
+   *
    * A Test that checks to see if each class is assignable to the provided class. Note
    * that this test will match the parent type itself if it is presented for matching.
    */
   public static class IsA implements Test {
     private Class<?> parent;
 
-    /** Constructs an IsA test using the supplied Class as the parent class/interface. */
+    /**
+     * 在构造方法中初始化 parent 字段
+     * Constructs an IsA test using the supplied Class as the parent class/interface.
+     */
     public IsA(Class<?> parentType) {
       this.parent = parentType;
     }
@@ -99,13 +108,18 @@ public class ResolverUtil<T> {
   }
 
   /**
+   * 检测指定类是否添加了 annotation 注解
+   *
    * A Test that checks to see if each class is annotated with a specific annotation. If it
    * is, then the test returns true, otherwise false.
    */
   public static class AnnotatedWith implements Test {
     private Class<? extends Annotation> annotation;
 
-    /** Constructs an AnnotatedWith test for the specified annotation type. */
+    /**
+     * 构造方法初始化 annotation 字段
+     * Constructs an AnnotatedWith test for the specified annotation type.
+     */
     public AnnotatedWith(Class<? extends Annotation> annotation) {
       this.annotation = annotation;
     }
@@ -126,6 +140,8 @@ public class ResolverUtil<T> {
   private Set<Class<? extends T>> matches = new HashSet<>();
 
   /**
+   * 记录了当前使用的类加载器，默认情况下，使用的是当前线程上下文绑定的 ClassLoader，我们可以通过 setClassLoader()方法修改使用类加载器。
+   *
    * The ClassLoader to use when looking for classes. If null then the ClassLoader returned
    * by Thread.currentThread().getContextClassLoader() will be used.
    */
@@ -250,6 +266,7 @@ public class ResolverUtil<T> {
   @SuppressWarnings("unchecked")
   protected void addIfMatching(Test test, String fqn) {
     try {
+      // fqn是类的完全限定名，即包括其所在包的包名
       String externalName = fqn.substring(0, fqn.indexOf('.')).replace('/', '.');
       ClassLoader loader = getClassLoader();
       if (log.isDebugEnabled()) {
@@ -257,6 +274,7 @@ public class ResolverUtil<T> {
       }
 
       Class<?> type = loader.loadClass(externalName);
+      // 将符合条件的类记录到 matches 集合中
       if (test.matches(type)) {
         matches.add((Class<T>) type);
       }

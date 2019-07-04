@@ -26,6 +26,7 @@ import java.lang.reflect.WildcardType;
 import java.util.Arrays;
 
 /**
+ * 它是一个工具类，提供了一系列静态 方法来解析指定类中的宇段、方法返回值或方法参数的类型。
  * @author Iwao AVE!
  */
 public class TypeParameterResolver {

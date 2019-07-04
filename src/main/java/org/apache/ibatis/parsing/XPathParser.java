@@ -40,15 +40,21 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 /**
+ * MyBatis提供的 XPathParser类封装了 XPath、 Document和 EntityResolver
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
 public class XPathParser {
 
+  // Document 对象
   private final Document document;
+  // 是否开启验证
   private boolean validation;
+  // 用于加载本地 DTD 文件
   private EntityResolver entityResolver;
+  // mybatis-config.xml 中<propteries>标签定义的键位对集合
   private Properties variables;
+  // XPath 对象
   private XPath xpath;
 
   public XPathParser(String xml) {
@@ -226,9 +232,11 @@ public class XPathParser {
     }
   }
 
+  // 调用 createOocument ()方法之前一定要先调用 commonConstructor ()方法完成初始化
   private Document createDocument(InputSource inputSource) {
     // important: this must only be called AFTER common constructor
     try {
+      // 创建 OocumentBuilderFactory 对象，对 DocumentBuilderFactory 对象进行一系列配置
       DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
       factory.setValidating(validation);
 
@@ -238,7 +246,9 @@ public class XPathParser {
       factory.setCoalescing(false);
       factory.setExpandEntityReferences(true);
 
+      // 创建 DocumentBuilder 对象并进行自己置
       DocumentBuilder builder = factory.newDocumentBuilder();
+      // 设置 EntityResolver 接 口对象
       builder.setEntityResolver(entityResolver);
       builder.setErrorHandler(new ErrorHandler() {
         @Override
@@ -255,6 +265,7 @@ public class XPathParser {
         public void warning(SAXParseException exception) throws SAXException {
         }
       });
+      // 加载 XML 文件
       return builder.parse(inputSource);
     } catch (Exception e) {
       throw new BuilderException("Error creating document instance.  Cause: " + e, e);

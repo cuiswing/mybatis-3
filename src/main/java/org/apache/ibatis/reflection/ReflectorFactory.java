@@ -15,11 +15,21 @@
  */
 package org.apache.ibatis.reflection;
 
+/**
+ * ReflectorFactory接口主要实现了对 Reflector对象的创建和缓存
+ * <p>
+ * MyBatis 为该接口提供了 DefaultReflectorFactory这一个实现类
+ * 除了使用 MyBatis 提供的 DefaultReflectorFactory 实现，我们还可以在 mybatis-config.xml 中配置自定义的 ReflectorFactory实现类，
+ * 从而实现功能上的扩展。
+ */
 public interface ReflectorFactory {
 
+  // 检测该 ReflectorFactory 对象是否会缓存 Reflector 对象
   boolean isClassCacheEnabled();
 
+  // 设置是否缓存 Reflector 对象
   void setClassCacheEnabled(boolean classCacheEnabled);
 
+  // 创建指定 Class 对应的 Reflector 对象
   Reflector findForClass(Class<?> type);
 }

@@ -28,6 +28,7 @@ public final class LogFactory {
    */
   public static final String MARKER = "MYBATIS";
 
+  // 记录当前使用的第二方日志组件所对应的适配器的构造方法
   private static Constructor<? extends Log> logConstructor;
 
   static {
